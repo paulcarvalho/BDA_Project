@@ -1,6 +1,12 @@
+# Paul Carvalho
+# Big Data Analysis
+# Final Project
+# Spring 2017
+
+# Data Analysis
+
 # Directories ---------------------------------------------------------------------------------------
 setwd("C:/Users/pgcar/Desktop/BDA/Project")
-
 
 # Libraries -----------------------------------------------------------------------------------------
 library(plyr)
@@ -11,135 +17,147 @@ library(plotrix)
 
 
 # Functions -----------------------------------------------------------------------------------------
-calc_percent_total = function(catch_data){
+calc_percent_total = function(catch_data, by_weight){
   # Calculate the percent of catch for each row in the data frame.
   # 
   # Input:
   #   catch_data - a dataframe for catch data.
-  # 
+  #   by_weight - TRUE for weight and FALSE for frequency 
+  #
   # Output:
-  #   Returns a vector with percentages of total catch (all values sum to 100).
-  percent_catch = (catch_data$total_catch / (sum(catch_data$total_catch, na.rm=TRUE))) * 100
-  return(percent_catch)
+  #   Returns a vector with percentages of total weight or frequency (all values sum to 100).
+  if(by_weight==TRUE){
+    percent_catch = (catch_data$total_catch / (sum(catch_data$total_catch, na.rm=TRUE))) * 100
+    return(percent_catch)
+  }
+  else{
+    percent_frequency = (catch_data$total_frequency / (sum(catch_data$total_frequency, na.rm=TRUE))) * 100
+    return(percent_frequency)
+  }
+  
 }
 
-sort_catch = function(catch_data, sort_decreasing){
-  # Sort the levels in factor "Genus_Species" by percent catch.
+sort_catch = function(catch_data, by_weight, sort_decreasing){
+  # Sort the levels in factor "Genus_Species" by percent catch or frequency.
   #
   # Input:
   #   catch_data - a dataframe for catch data.
+  #   by_weight - TRUE to sort by weight and FALSE to sort by freuency.
   #   sort_decreasing - If TRUE sort percent catch in decreasing order. If FALSE sort in increasing order.
   #
   # Output:
   #   Returns the sorted factor "Genus_Species".
-  return(factor(catch_data$Genus_Species, 
-                levels = catch_data$Genus_Species[order(catch_data$percent_catch,decreasing=sort_decreasing)]))
+  if(by_weight == TRUE){
+    return(factor(catch_data$Genus_Species, 
+                  levels = catch_data$Genus_Species[order(catch_data$percent_catch,decreasing=sort_decreasing)]))
+  }
+  else{
+    return(factor(catch_data$Genus_Species, 
+                  levels = catch_data$Genus_Species[order(catch_data$total_frequency,decreasing=sort_decreasing)]))
+  }
+  
 }
 
 
 # Load data -----------------------------------------------------------------------------------------
 raw_lombok_data = read.csv("Lombok_cleaned.csv", header = TRUE)
-  # Create a variable with genus and species name
-  raw_lombok_data$Genus_Species = paste(raw_lombok_data$Genus, raw_lombok_data$Species, sep = " ")
 
-  
+# Create a variable with genus and species name
+raw_lombok_data$Genus_Species = paste(raw_lombok_data$Genus, raw_lombok_data$Species, sep = " ")
+raw_lombok_data$Frequency = raw_lombok_data$Total_catch_kg/raw_lombok_data$Weight_per_fish_kg
+
+# Total catch by gear type --------------------------------------------------------------------------
+data_geartype = ddply(raw_lombok_data, c("Fishing_Gear_Group"), 
+                      function(df)c(total_catch=sum(df$Total_catch_kg,na.rm=TRUE),
+                                    total_frequency=sum(df$Frequency,na.rm=TRUE)))
+# Remove NA
+data_geartype = data_geartype[-4,]
+# Plot catch for each gear type by weight
+ggplot(data_geartype, aes(x=Fishing_Gear_Group, y=total_catch)) + 
+  geom_bar(stat='identity') +
+  theme(axis.text.x = element_text(angle=90))+
+  labs(x="Fishing Gear", y="Total fish weight (kg)", title = "Lombock catch by gear (weight)")
+
+# Plot catch for each gear type by frequency
+ggplot(data_geartype, aes(x=Fishing_Gear_Group, y=total_frequency)) + 
+  geom_bar(stat='identity') +
+  theme(axis.text.x = element_text(angle=90))+
+  labs(x="Fishing Gear", y="Number of fish", title = "Lombock catch by gear (frequency)")
+
 # Catch composition: entire catch -------------------------------------------------------------------
 # Sum of total catch for each species and create new dataframe
 total_catch_df = ddply(raw_lombok_data, c("Genus_Species"), 
-                       function(df)c(total_catch=sum(df$Total_Catch_kg),
-                                     std.err=std.error(df$Total_Catch_kg)))
-# Calculate percent of total catch for each species
-total_catch_df$percent_catch = calc_percent_total(total_catch_df)
-# Sort the order of levels in factor genus_species
-total_catch_df$Genus_Species = sort_catch(total_catch_df,TRUE)
-# Remove rows with NA in percent_catch variable
-total_catch_df = total_catch_df[!is.na(total_catch_df$percent_catch),]
-# Plot the top 50 species that make up total catch.
-sum(total_catch_df$percent_catch[1:50])
-top_50species = total_catch_df[1:50,]
-ggplot(top_50species, aes(x=Genus_Species, y=percent_catch)) + 
+                       function(df)c(total_catch=sum(df$Total_catch_kg,na.rm=TRUE),
+                                     total_frequency=sum(df$Frequency,na.rm=TRUE)))
+# Remove the first row because it does not contain data
+total_catch_df = total_catch_df[-1,]
+# Check for NAs
+num_NA = sum(is.na(total_catch_df))
+
+# Calculate percent of total weight and frequency for each species
+total_catch_df$percent_catch = calc_percent_total(total_catch_df, TRUE)
+total_catch_df$percent_frequency = calc_percent_total(total_catch_df, FALSE)
+
+# Sort by weight and frequency
+sorted_total_weight = total_catch_df[order(total_catch_df$percent_catch,decreasing = TRUE),]
+sorted_total_frequency = total_catch_df[order(total_catch_df$total_frequency,decreasing = TRUE),]
+
+# Sort the order of levels in factor genus_species for sorted dataframes
+sorted_total_weight$Genus_Species = sort_catch(sorted_total_weight,TRUE,TRUE)
+sorted_total_frequency$Genus_Species = sort_catch(sorted_total_frequency,FALSE,TRUE)
+
+# Plot catch composition by weight (top 50 species)
+ggplot(sorted_total_weight[1:50,], aes(x=Genus_Species, y=percent_catch)) + 
   geom_bar(stat='identity') +
   theme(axis.text.x = element_text(angle=90))+
-  labs(x="Species", y="Percentage Catch", title = "Lombock Catch Composition")
+  labs(x="Species", y="Percentage Catch", title = "Lombock catch composition by weight")
+
+# Plot catch composition by frequency (top 50 species)
+ggplot(sorted_total_frequency[1:50,], aes(x=Genus_Species, y=percent_frequency)) + 
+  geom_bar(stat='identity') +
+  theme(axis.text.x = element_text(angle=90))+
+  labs(x="Species", y="Percentage Catch", title = "Lombock catch composition by frequency")
 
 
 # Subset data by fishing gear -----------------------------------------------------------------------
-gear_types = unique(raw_lombok_data$Fishing_Gear_Group)
+gear_catch_df = ddply(raw_lombok_data, c("Genus_Species","Fishing_Gear_Group"), 
+                       function(df)c(total_catch=sum(df$Total_catch_kg)))
 # Spears
-lombok_catch_spear = subset(raw_lombok_data, Fishing_Gear_Group == 'Speargun')
+spear_df = subset(gear_catch_df, Fishing_Gear_Group == 'Speargun')
 # Nets
-lombok_catch_net = subset(raw_lombok_data, Fishing_Gear_Group == 'Net')
+net_df = subset(gear_catch_df, Fishing_Gear_Group == 'Net')
 # Handline
-lombok_catch_handline = subset(raw_lombok_data, Fishing_Gear_Group == 'Handline')
-
-
-Species_Speargun = subset(Lom, Fishing_Gear_Group == "Speargun")
-Species_Speargun
-
-str(Species_Speargun)
-
-test = ddply(Lom, c("Fishing_Gear_Group","Genus_Species"), 
-             function(df) c(total_catch=sum(df$Total_Catch_kg),
-                          std.err=std.error(df$Total_Catch_kg))) 
-
-test.sort = test[order(test$total_catch), ]###(test, decreasing = TRUE, 'total_catch')
+handline_df = subset(gear_catch_df, Fishing_Gear_Group == 'Handline')
 
 
 # Spear ---------------------------------------------------------------------------------------------
-Species_Speargun = subset(test, Fishing_Gear_Group == "Speargun")
-
-#Species_Speargun_sort = Species_Speargun[order(Species_Speargun$total_catch), ]
-#Species_Speargun = Species_Speargun(sort(test$total_catch, decreasing = TRUE))
-#ggplot(Species_Speargun_sort, aes(x=Genus_Species, y=total_catch)) + 
-#  geom_bar(stat='identity') +
-#  theme(axis.text.x = element_text(angle=90)) 
-
-spear_df = Species_Speargun
-spear_df$percent_catch = (spear_df$total_catch / (sum(spear_df$total_catch, na.rm=TRUE))) * 100
-spear_df$Genus_Species = factor(spear_df$Genus_Species, 
-                                levels = spear_df$Genus_Species[order(spear_df$total_catch,decreasing=TRUE)])
+spear_df$percent_catch = calc_percent_total(spear_df)
+spear_df$Genus_Species = sort_catch(spear_df, TRUE)
 
 ggplot(spear_df, aes(x=Genus_Species, y=percent_catch)) + 
   geom_bar(stat='identity') +
   theme(axis.text.x = element_text(angle=90)) 
 
+# Find top 75 percent of the catch
 spear_sorted = spear_df[order(spear_df$percent_catch,decreasing = TRUE),]
-sum(spear_sorted$percent_catch[1:50])
+sum(spear_sorted$percent_catch[1:20])
+spear_sorted_75 = spear_sorted[1:20,]
 
-spear_top_90 = spear_sorted[1:50,]
-
-ggplot(spear_top_90, aes(x=Genus_Species, y=percent_catch)) + 
+# Plot top 75% of the catch
+ggplot(spear_sorted_75, aes(x=Genus_Species, y=percent_catch)) + 
   geom_bar(stat='identity') +
   theme(axis.text.x = element_text(angle=90))+
   labs(x="Genus Species", y="Percentage Catch", title = "Lombock Speargun Catch Composition")
 
 
-
-
 # Net --------------------------------------------------------------------------------------------------
-Species_Net = subset(test, Fishing_Gear_Group == "Net")
-str(Species_Net)
-
-net_df = Species_Net
-net_df$percent_catch = ((net_df$total_catch / (sum(net_df$total_catch, na.rm=TRUE))) * 100)
-net_df$Genus_Species = factor(net_df$Genus_Species, 
-                                levels = net_df$Genus_Species[order(net_df$total_catch,decreasing=TRUE)])
+net_df$percent_catch = calc_percent_total(net_df)
+net_df$Genus_Species = sort_catch(net_df, TRUE)
 
 ggplot(net_df, aes(x=Genus_Species, y=percent_catch)) + 
   geom_bar(stat='identity') +
   theme(axis.text.x = element_text(angle=90))+
   labs(x="Genus Species", y="Percentage Catch", title = "Lombock Net Catch Composition")
-
-
-#spear_sorted = spear_df[order(spear_df$percent_catch,decreasing = TRUE),]
-#sum(spear_sorted$percent_catch[1:50])
-
-#spear_top_90 = spear_sorted[1:50,]
-
-#ggplot(spear_top_90, aes(x=Genus_Species, y=percent_catch)) + 
-# geom_bar(stat='identity') +
-#  theme(axis.text.x = element_text(angle=90)) 
-
 
 
 # Handline ------------------------------------------------------------------------------------------------
