@@ -62,6 +62,7 @@ map(regions="indonesia", fill=TRUE, col='grey45', add=TRUE)
 points(116.3249, -8.6510, col = "red", cex = 3, lwd = 3)
 box(which="plot", lty="solid")
 ```
+
 **Figure 1.** Map of Indonesia with Lomnok indicated by red circle.
 
 ## Data Analysis
@@ -79,6 +80,7 @@ library(dplyr)
 library(stringr)
 library(ggplot2)
 library(plotrix)
+library(vegan)
 
 # Functions -----------------------------------------------------------------------------------------
 calc_percent_total = function(catch_data, by_weight){
@@ -144,6 +146,7 @@ ggplot(data_geartype, aes(x=Fishing_Gear_Group, y=total_catch)) +
   theme(axis.text.x = element_text(angle=0))+
   labs(x="Fishing Gear", y="Total fish weight (kg)")
 ```
+
 **Figure 2**. Total catch (kilograms) by all fishing gears in Lombok, Indonesia.
 
 
@@ -154,6 +157,7 @@ ggplot(data_geartype, aes(x=Fishing_Gear_Group, y=total_frequency)) +
   theme(axis.text.x = element_text(angle=0))+
   labs(x="Fishing Gear", y="Number of fish")
 ```
+
 **Figure 3**. Total number of fish caught by all fishing gears in Lombok, Indonesia.  
 
 ```{r, include=FALSE, echo=FALSE}
@@ -195,6 +199,7 @@ ggplot(sorted_total_weight[1:20,], aes(x=Genus_Species, y=percent_catch)) +
   theme(axis.line.x = element_line(color='black', size=0.5),
         axis.line.y = element_line(color='black', size=0.5))
 ```
+
 **Figure 4**. Species catch composition by weight for handlines and spearguns in Lombok, Indonesia. This figure only includes the top 20 species by weight.
 
 ```{r, echo=FALSE}
@@ -207,6 +212,7 @@ ggplot(sorted_total_frequency[1:20,], aes(x=Genus_Species, y=percent_frequency))
   theme(axis.line.x = element_line(color='black', size=0.5),
         axis.line.y = element_line(color='black', size=0.5))
 ```
+
 **Figure 5**. Species catch composition by frequency (i.e., number of individuals caught) for handlines and spearguns in Lombok, Indonesia. This figure only includes the top 20 species by individuals caught.
 
 ```{r, include=FALSE, echo=FALSE}
@@ -250,7 +256,7 @@ handline_sorted_weight$Genus_Species = sort_catch(handline_sorted_weight,TRUE,TR
 handline_sorted_frequency$Genus_Species = sort_catch(handline_sorted_frequency,FALSE,TRUE)
 ```
 
-When catch separated by fishing gear type, I found that fishers using spearguns mainly target the elongate surgeonfish, *Acanthurus mata* (Fig. 6 and 7). 
+When catch separated by fishing gear type, I found that fishers using spearguns mainly target the elongate surgeonfish, *Acanthurus mata* (Fig. 6 and 7). Timor snapper (*Lutjanus timoriensis*) makes up most of the handline catch by weight (25%), but rockfish (*Sebasticus tertius*) makes up most of the handline catch by number of individuals caught (Fig. 8 and 9).
 
 ```{r, echo=FALSE}
 # Spear plots ----------------------------------------------------------------------------------------------
@@ -262,6 +268,7 @@ ggplot(spear_sorted_weight[1:20,], aes(x=Genus_Species, y=percent_catch)) +
   theme(axis.line.x = element_line(color='black', size=0.5),
         axis.line.y = element_line(color='black', size=0.5))
 ```
+
 **Figure 6**. Species catch composition by weight for speargun catch in Lombok, Indonesia.
 
 ```{r, echo=FALSE}
@@ -273,6 +280,7 @@ ggplot(spear_sorted_frequency[1:20,], aes(x=Genus_Species, y=percent_frequency))
   theme(axis.line.x = element_line(color='black', size=0.5),
         axis.line.y = element_line(color='black', size=0.5))
 ```
+
 **Figure 7**. Species catch composition by frequency for speargun catch in Lombok, Indonesia.
 
 ```{r, echo=FALSE}
@@ -285,6 +293,7 @@ ggplot(handline_sorted_weight[1:20,], aes(x=Genus_Species, y=percent_catch)) +
   theme(axis.line.x = element_line(color='black', size=0.5),
         axis.line.y = element_line(color='black', size=0.5))
 ```
+
 **Figure 8**. Species catch composition by weight for handline catch in Lombok, Indonesia.
 
 ```{r, echo=FALSE}
@@ -296,4 +305,15 @@ ggplot(handline_sorted_frequency[1:20,], aes(x=Genus_Species, y=percent_frequenc
   theme(axis.line.x = element_line(color='black', size=0.5),
         axis.line.y = element_line(color='black', size=0.5))
 ```
+
 **Figure 9**. Species catch composition by frequency for handline catch in Lombok, Indonesia
+
+```{r, include=FALSE, echo=FALSE}
+# Detrended correspondence analysis --------------------------------------------------------------------------------------
+gear_codes = rep(NA, length(lombok_data_no_net$Genus_Species))
+gear_codes[which(lombok_data_no_net$Fishing_Gear_Group == "Speargun")] = 1
+gear_codes[which(lombok_data_no_net$Fishing_Gear_Group == "Handline")] = 2
+new_df = cbind(lombok_data_no_net$Genus_Species, lombok_data_no_net$Frequency, gear_codes)
+
+ord = decorana(new_df)
+```
