@@ -1,0 +1,127 @@
+---
+title: "Big Data Analysis Final Project - Coral Reef Fisheries in Indonesia"
+author: "Paul Carvalho"
+date: "May 1, 2017"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Introduction
+
+## Methods
+
+In 2014 and 2015, the Wildlife Conservation Society Indonesia Program (WCS) collected fishery landings data from Lombok, Indonesia located in the Nusa Tenggara Barat region (Fig. 1). WCS personnel randomly sampled fishsers as they returned from a fishing trip. Data collectors identified fish to the species level and weight the total catch. In addition, they estimated average weight (kg) and size (cm) of individual fish.
+
+I used R software to clean data and remove unnecessary variables from the data. Also, I checked for misspelling of all variables in the data and created a new file with cleaned data.
+
+```{r, include=FALSE, echo=FALSE}
+# Indonesia map libraries ---------------------------------------------------------------------------------------
+library(maps)
+library(mapdata)
+```
+
+```{r, echo=FALSE}
+cc <- map('world', names = TRUE, plot = FALSE)
+take <- unlist(sapply(c("indonesia"), 
+                      grep, tolower(cc), value = TRUE))
+map('world', regions=take, fill=TRUE, col='grey93')
+map(regions="indonesia", fill=TRUE, col='grey45', add=TRUE)
+points(116.3249, -8.6510, col = "red", cex = 3, lwd = 3)
+box(which="plot", lty="solid")
+```
+**Figure 1.** Map of Indonesia with Lomnok indicated by red circle.
+
+## Data Analysis
+
+Handlines caught the most fish in terms of individuals caught and total weight (Fig. 2). Although spearguns caught much less fish in weight, spearguns and handlines caught similar quantities of individual fish (Fig. 3). Due to insufficient data collection for fish caught by nets, I excluded net data from the following data analyses. Scarce data from net fisheries might be due to failure to sample net fishers, or from the infrequent use of nets in Lombok, or both.
+
+```{r, include=FALSE, echo=FALSE}
+# Directories ---------------------------------------------------------------------------------------
+# setwd("C:/Users/pgcar/Desktop/BDA/Project")
+setwd("C:/Users/humphriesLAB/Desktop/Paul Carvalho/Courses/Big Data/BDA_Project")
+
+# Libraries -----------------------------------------------------------------------------------------
+library(plyr)
+library(dplyr)
+library(stringr)
+library(ggplot2)
+library(plotrix)
+
+# Functions -----------------------------------------------------------------------------------------
+calc_percent_total = function(catch_data, by_weight){
+  # Calculate the percent of catch for each row in the data frame.
+  # 
+  # Input:
+  #   catch_data - a dataframe for catch data.
+  #   by_weight - TRUE for weight and FALSE for frequency 
+  #
+  # Output:
+  #   Returns a vector with percentages of total weight or frequency (all values sum to 100).
+  if(by_weight==TRUE){
+    percent_catch = (catch_data$total_catch / (sum(catch_data$total_catch, na.rm=TRUE))) * 100
+    return(percent_catch)
+  }
+  else{
+    percent_frequency = (catch_data$total_frequency / (sum(catch_data$total_frequency, na.rm=TRUE))) * 100
+    return(percent_frequency)
+  }
+  
+}
+
+sort_catch = function(catch_data, by_weight, sort_decreasing){
+  # Sort the levels in factor "Genus_Species" by percent catch or frequency.
+  #
+  # Input:
+  #   catch_data - a dataframe for catch data.
+  #   by_weight - TRUE to sort by weight and FALSE to sort by freuency.
+  #   sort_decreasing - If TRUE sort percent catch in decreasing order. If FALSE sort in increasing order.
+  #
+  # Output:
+  #   Returns the sorted factor "Genus_Species".
+  if(by_weight == TRUE){
+    return(factor(catch_data$Genus_Species, 
+                  levels = catch_data$Genus_Species[order(catch_data$percent_catch,decreasing=sort_decreasing)]))
+  }
+  else{
+    return(factor(catch_data$Genus_Species, 
+                  levels = catch_data$Genus_Species[order(catch_data$total_frequency,decreasing=sort_decreasing)]))
+  }
+  
+}
+
+
+# Load data -----------------------------------------------------------------------------------------
+raw_lombok_data = read.csv("Lombok_cleaned.csv", header = TRUE)
+# Create a variable with genus and species name
+raw_lombok_data$Genus_Species = paste(raw_lombok_data$Genus, raw_lombok_data$Species, sep = " ")
+raw_lombok_data$Frequency = raw_lombok_data$Total_catch_kg/raw_lombok_data$Weight_per_fish_kg
+
+```
+
+```{r, echo=FALSE}
+# Total catch by gear type --------------------------------------------------------------------------
+data_geartype = ddply(raw_lombok_data, c("Fishing_Gear_Group"), 
+                      function(df)c(total_catch=sum(df$Total_catch_kg,na.rm=TRUE),
+                                    total_frequency=sum(df$Frequency,na.rm=TRUE)))
+# Remove NA
+data_geartype = data_geartype[-4,]
+# Plot catch for each gear type by weight
+ggplot(data_geartype, aes(x=Fishing_Gear_Group, y=total_catch)) + 
+  geom_bar(stat='identity') +
+  theme(axis.text.x = element_text(angle=0))+
+  labs(x="Fishing Gear", y="Total fish weight (kg)")
+```
+**Figure 2**. Total catch (kilograms) by all fishing gears in Lombok, Indonesia.
+
+```{r, echo=FALSE}
+# Plot catch for each gear type by frequency
+ggplot(data_geartype, aes(x=Fishing_Gear_Group, y=total_frequency)) + 
+  geom_bar(stat='identity') +
+  theme(axis.text.x = element_text(angle=0))+
+  labs(x="Fishing Gear", y="Number of fish")
+```
+**Figure 3**. Total number of fish caught by all fishing gears in Lombok, Indonesia.
+
+
