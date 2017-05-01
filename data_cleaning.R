@@ -5,8 +5,12 @@
 
 # Data cleaning
 
+# House keeping -----------------------------------------------------------------------------------
+rm(list=ls())
+
 # Directories -------------------------------------------------------------------------------------
-setwd("C:/Users/pgcar/Desktop/BDA/Project")
+# setwd("C:/Users/pgcar/Desktop/BDA/Project")
+setwd("C:/Users/humphriesLAB/Desktop/Paul Carvalho/Courses/Big Data/BDA_Project")
 
 # Libraries ---------------------------------------------------------------------------------------
 library(readxl)
@@ -18,12 +22,16 @@ lombok.data = system.file("WCS_Lombok_FishCatchData_West Lombok_CPUE_Analysis_TR
 lombok_raw = read_excel("WCS_Lombok_FishCatchData_West Lombok_CPUE_Analysis_TR.xlsx", sheet = "Raw")
 str(lombok_raw)
 
+
 # Remove columns that are not needed --------------------------------------------------------------
-lombok_trunc = lombok_raw[,-(25:29)]
+# lombok_trunc = lombok_raw[,-c(25:29)] # Only need this code if r includes NA columns
+lombok_trunc = lombok_raw # Only use this code is NA columns at end of data frame are omitted
 lombok_trunc$`Sale (%)` = NULL # Too many NAs
 lombok_trunc$`Trip Hours (Jam)` = NULL # Too many NAs
 lombok_trunc$`Operational cost (Rp)` = NULL
 lombok_trunc$`Zoning system` = NULL # Too many NAs
+lombok_trunc$`Catch per fish (kg)` = as.numeric(lombok_trunc$`Catch per fish (kg)`)
+lombok_trunc$`Total Catch (Kg)` = as.numeric(lombok_trunc$`Total Catch (Kg)`)
 
 # Rename variables in data frame ------------------------------------------------------------------
 names(lombok_trunc)[3] = 'Trip_ID'
