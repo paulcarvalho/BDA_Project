@@ -88,13 +88,17 @@ ggplot(data_geartype, aes(x=Fishing_Gear_Group, y=total_frequency)) +
   theme(axis.text.x = element_text(angle=90))+
   labs(x="Fishing Gear", y="Number of fish", title = "Lombock catch by gear (frequency)")
 
+
 # Catch composition: entire catch -------------------------------------------------------------------
 # Sum of total catch for each species and create new dataframe
-total_catch_df = ddply(raw_lombok_data, c("Genus_Species"), 
+lombok_data_no_net = subset(raw_lombok_data, Fishing_Gear_Group != "Net") # Remove net data
+lombok_data_no_net$Fishing_Gear_Group = factor(lombok_data_no_net$Fishing_Gear_Group) # Remove net from factor levels
+total_catch_df = ddply(lombok_data_no_net, c("Genus_Species"), 
                        function(df)c(total_catch=sum(df$Total_catch_kg,na.rm=TRUE),
                                      total_frequency=sum(df$Frequency,na.rm=TRUE)))
 # Remove the first row because it does not contain data
 total_catch_df = total_catch_df[-1,]
+
 # Check for NAs
 num_NA = sum(is.na(total_catch_df))
 
@@ -113,7 +117,7 @@ sorted_total_frequency$Genus_Species = sort_catch(sorted_total_frequency,FALSE,T
 # Plot catch composition by weight (top 50 species)
 ggplot(sorted_total_weight[1:50,], aes(x=Genus_Species, y=percent_catch)) + 
   geom_bar(stat='identity') +
-  theme(axis.text.x = element_text(angle=90))+
+  theme(axis.text.x = element_text(angle=75))+
   labs(x="Species", y="Percentage Catch", title = "Lombock catch composition by weight")
 
 # Plot catch composition by frequency (top 50 species)
