@@ -5,8 +5,12 @@
 
 # Data Analysis
 
+# House keeping -------------------------------------------------------------------------------------
+rm(list=ls())
+
 # Directories ---------------------------------------------------------------------------------------
-setwd("C:/Users/pgcar/Desktop/BDA/Project")
+# setwd("C:/Users/pgcar/Desktop/BDA/Project")
+setwd("C:/Users/humphriesLAB/Desktop/Paul Carvalho/Courses/Big Data/BDA_Project")
 
 # Libraries -----------------------------------------------------------------------------------------
 library(plyr)
