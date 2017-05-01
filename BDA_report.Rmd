@@ -2,7 +2,9 @@
 title: "Big Data Analysis Final Project - Coral Reef Fisheries in Indonesia"
 author: "Paul Carvalho"
 date: "May 1, 2017"
-output: word_document
+output:
+  word_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -10,11 +12,40 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 ## Introduction
 
+Overfishing, climate change, coastal development, and pollution are deteriorating marine
+ecosystems and threatening the welfare of coastal communities (1, 2). This problem is
+developing rapidly on coral reefs where growing human populations and increasing demand for
+seafood are fueling overfishing and compromising the ecosystem services provided by coral
+reefs (3). Marine Protected Areas (MPAs) that ban fishing activities have been shown to provide
+conservation benefits by protecting biodiversity and ecological functions that make coral reefs
+resilient (4). Although MPAs are touted by conservationists and adopted as the primary tool for
+ecosystem-based management (EBM), MPAs are not a panacea for marine resource management issues
+(5). For example, in coral reef systems there can be little community support for conservation
+management that drastically changes cultural traditions, often making MPAs socially
+unacceptable (6). Consequently, gear-based restrictions may be an alternative tool for EBM that
+can be tailored to the local, sociocultural context of communities with coral reef fisheries, and thus
+generating more community support and promoting conservation of coral reef habitats and
+associated ecosystem services (7).
+
+Many gears are used in coral reef fisheries around the world, such as hook-and-line,
+spearguns, traps, beach seines, and gill nets (8). Due to the diversity in fishing methods and
+gears, gear-types differentially select species, trophic levels, and size classes of fish (9).
+Understanding the effects of different gears on reef fish assemblages is important as many
+species perform salient roles in the ecosystem (10). For example, herbivorous fish graze turf or
+macroalgae that compete with corals for resources (i.e., space), effectively preventing shifts from
+coral-dominated to algal-dominated habitats (11). If certain gears target and remove large
+quantities of herbivores, habitat phase shifts occur, and coral reefs lose their structural
+complexity and ability to support productive fisheries, an important ecosystem service (12).
+Also, certain gears (i.e., gill nets, beach seines) can be damaging to coral reef habitats and reduce
+structural complexity via entanglement (13). In light of this, it is critical to gain a better
+understanding of the ecological impacts of fishing gears in coral reef systems if effective EBM is
+to be developed.For this project I analyze catch landings data from coral reef fisheries in Lombok, Indonesia. I aim to analyze the species composition and size selectivity of different fishing gears used in Lombok. 
+
 ## Methods
 
 In 2014 and 2015, the Wildlife Conservation Society Indonesia Program (WCS) collected fishery landings data from Lombok, Indonesia located in the Nusa Tenggara Barat region (Fig. 1). WCS personnel randomly sampled fishsers as they returned from a fishing trip. Data collectors identified fish to the species level and weight the total catch. In addition, they estimated average weight (kg) and size (cm) of individual fish.
 
-I used R software to clean data and remove unnecessary variables from the data. Also, I checked for misspelling of all variables in the data and created a new file with cleaned data.
+I used R software to clean data and remove unnecessary variables from the data. Also, I checked for misspelling of all variables in the data and created a new file with cleaned data. After data cleaning, I analyzed data using R Software.
 
 ```{r, include=FALSE, echo=FALSE}
 # Indonesia map libraries ---------------------------------------------------------------------------------------
@@ -115,6 +146,7 @@ ggplot(data_geartype, aes(x=Fishing_Gear_Group, y=total_catch)) +
 ```
 **Figure 2**. Total catch (kilograms) by all fishing gears in Lombok, Indonesia.
 
+
 ```{r, echo=FALSE}
 # Plot catch for each gear type by frequency
 ggplot(data_geartype, aes(x=Fishing_Gear_Group, y=total_frequency)) + 
@@ -122,6 +154,146 @@ ggplot(data_geartype, aes(x=Fishing_Gear_Group, y=total_frequency)) +
   theme(axis.text.x = element_text(angle=0))+
   labs(x="Fishing Gear", y="Number of fish")
 ```
-**Figure 3**. Total number of fish caught by all fishing gears in Lombok, Indonesia.
+**Figure 3**. Total number of fish caught by all fishing gears in Lombok, Indonesia.  
 
+```{r, include=FALSE, echo=FALSE}
+# Catch composition: entire catch -------------------------------------------------------------------
+# Sum of total catch for each species and create new dataframe
+lombok_data_no_net = subset(raw_lombok_data, Fishing_Gear_Group != "Net") # Remove net data
+lombok_data_no_net$Fishing_Gear_Group = factor(lombok_data_no_net$Fishing_Gear_Group) # Remove net from factor levels
+total_catch_df = ddply(lombok_data_no_net, c("Genus_Species"), 
+                       function(df)c(total_catch=sum(df$Total_catch_kg,na.rm=TRUE),
+                                     total_frequency=sum(df$Frequency,na.rm=TRUE)))
+# Remove the first row because it does not contain data
+total_catch_df = total_catch_df[-1,]
 
+# Check for NAs
+num_NA = sum(is.na(total_catch_df))
+
+# Calculate percent of total weight and frequency for each species
+total_catch_df$percent_catch = calc_percent_total(total_catch_df, TRUE)
+total_catch_df$percent_frequency = calc_percent_total(total_catch_df, FALSE)
+
+# Sort by weight and frequency
+sorted_total_weight = total_catch_df[order(total_catch_df$percent_catch,decreasing = TRUE),]
+sorted_total_frequency = total_catch_df[order(total_catch_df$total_frequency,decreasing = TRUE),]
+
+# Sort the order of levels in factor genus_species for sorted dataframes
+sorted_total_weight$Genus_Species = sort_catch(sorted_total_weight,TRUE,TRUE)
+sorted_total_frequency$Genus_Species = sort_catch(sorted_total_frequency,FALSE,TRUE)
+```
+
+In total, WCS collected catch data for 194 species of reef fish, but most species make up less than 1% of the total catch data. The timor snapper (*Lutjanus timoriensis*) accounts for over 20% of the total catch by weight, followed by a small rockfish (*Sebasticus tertius*) and the elongate surgeonfish (*Acanthurus mata*) (Fig.4). The same three species comprise the top species in terms of number of individuals caught. However, the eolongate surgeonfish makes up most of the catch (17%), and the timor snapper is third at ~5% of the total catch (Fig.5).
+
+```{r, echo=FALSE}
+# Plot catch composition by weight (top 20 species)
+ggplot(sorted_total_weight[1:20,], aes(x=Genus_Species, y=percent_catch)) + 
+  geom_bar(stat='identity') +
+  ylab(expression(atop("Percent of total catch", paste("(by weight)")))) +
+  labs(x="Species") +
+  theme(axis.text.x = element_text(angle=60, hjust=1, vjust=1)) +
+  theme(axis.line.x = element_line(color='black', size=0.5),
+        axis.line.y = element_line(color='black', size=0.5))
+```
+**Figure 4**. Species catch composition by weight for handlines and spearguns in Lombok, Indonesia. This figure only includes the top 20 species by weight.
+
+```{r, echo=FALSE}
+# Plot catch composition by frequency (top 20 species)
+ggplot(sorted_total_frequency[1:20,], aes(x=Genus_Species, y=percent_frequency)) + 
+  geom_bar(stat='identity') +
+  ylab(expression(atop("Percent of total catch", paste("(by indivisuals)")))) +
+  labs(x="Species") +
+  theme(axis.text.x = element_text(angle=60, hjust=1, vjust=1)) +
+  theme(axis.line.x = element_line(color='black', size=0.5),
+        axis.line.y = element_line(color='black', size=0.5))
+```
+**Figure 5**. Species catch composition by frequency (i.e., number of individuals caught) for handlines and spearguns in Lombok, Indonesia. This figure only includes the top 20 species by individuals caught.
+
+```{r, include=FALSE, echo=FALSE}
+# Subset data by fishing gear -----------------------------------------------------------------------
+gear_catch_df = ddply(lombok_data_no_net, c("Genus_Species","Fishing_Gear_Group"), 
+                       function(df)c(total_catch=sum(df$Total_catch_kg),
+                                     total_frequency=sum(df$Frequency)))
+# Spears
+spear_df = subset(gear_catch_df, Fishing_Gear_Group == 'Speargun')
+# Handline
+handline_df = subset(gear_catch_df, Fishing_Gear_Group == 'Handline')
+```
+
+```{r, include=FALSE, echo=FALSE}
+# Spear ---------------------------------------------------------------------------------------------
+# Calculate percent total catch
+spear_df$percent_catch = calc_percent_total(spear_df,TRUE)
+spear_df$percent_frequency = calc_percent_total(spear_df,FALSE)
+
+# Sort by weight and frequency
+spear_sorted_weight = spear_df[order(spear_df$percent_catch,decreasing = TRUE),]
+spear_sorted_frequency = spear_df[order(spear_df$total_frequency,decreasing = TRUE),]
+
+# Sort the order of levels in factor genus_species for sorted dataframes
+spear_sorted_weight$Genus_Species = sort_catch(spear_sorted_weight,TRUE,TRUE)
+spear_sorted_frequency$Genus_Species = sort_catch(spear_sorted_frequency,FALSE,TRUE)
+```
+
+```{r, include=FALSE, echo=FALSE}
+# Handline ---------------------------------------------------------------------------------------------
+# Calculate percent total catch
+handline_df$percent_catch = calc_percent_total(handline_df,TRUE)
+handline_df$percent_frequency = calc_percent_total(handline_df,FALSE)
+
+# Sort by weight and frequency
+handline_sorted_weight = handline_df[order(handline_df$percent_catch,decreasing = TRUE),]
+handline_sorted_frequency = handline_df[order(handline_df$total_frequency,decreasing = TRUE),]
+
+# Sort the order of levels in factor genus_species for sorted dataframes
+handline_sorted_weight$Genus_Species = sort_catch(handline_sorted_weight,TRUE,TRUE)
+handline_sorted_frequency$Genus_Species = sort_catch(handline_sorted_frequency,FALSE,TRUE)
+```
+
+When catch separated by fishing gear type, I found that fishers using spearguns mainly target the elongate surgeonfish, *Acanthurus mata* (Fig. 6 and 7). 
+
+```{r, echo=FALSE}
+# Spear plots ----------------------------------------------------------------------------------------------
+# Plot top 20 of the catch by weight
+ggplot(spear_sorted_weight[1:20,], aes(x=Genus_Species, y=percent_catch)) + 
+  geom_bar(stat='identity') +
+  labs(x="Species", y="Percent of total catch") +
+  theme(axis.text.x = element_text(angle=60, hjust=1, vjust=1)) +
+  theme(axis.line.x = element_line(color='black', size=0.5),
+        axis.line.y = element_line(color='black', size=0.5))
+```
+**Figure 6**. Species catch composition by weight for speargun catch in Lombok, Indonesia.
+
+```{r, echo=FALSE}
+# Plot top 20 of the catch by frequency
+ggplot(spear_sorted_frequency[1:20,], aes(x=Genus_Species, y=percent_frequency)) + 
+  geom_bar(stat='identity') +
+  labs(x="Species", y="Percent of total catch") +
+  theme(axis.text.x = element_text(angle=60, hjust=1, vjust=1)) +
+  theme(axis.line.x = element_line(color='black', size=0.5),
+        axis.line.y = element_line(color='black', size=0.5))
+```
+**Figure 7**. Species catch composition by frequency for speargun catch in Lombok, Indonesia.
+
+```{r, echo=FALSE}
+# Handline plots ----------------------------------------------------------------------------------------------
+# Plot top 20 of the catch by weight
+ggplot(handline_sorted_weight[1:20,], aes(x=Genus_Species, y=percent_catch)) + 
+  geom_bar(stat='identity') +
+  labs(x="Species", y="Percent of total catch") +
+  theme(axis.text.x = element_text(angle=60, hjust=1, vjust=1)) +
+  theme(axis.line.x = element_line(color='black', size=0.5),
+        axis.line.y = element_line(color='black', size=0.5))
+```
+**Figure 8**. Species catch composition by weight for handline catch in Lombok, Indonesia.
+
+```{r, echo=FALSE}
+# Plot top 20 of the catch by frequency
+ggplot(handline_sorted_frequency[1:20,], aes(x=Genus_Species, y=percent_frequency)) + 
+  geom_bar(stat='identity') +
+  labs(x="Species", y="Percent of total catch") +
+  theme(axis.text.x = element_text(angle=60, hjust=1, vjust=1)) +
+  theme(axis.line.x = element_line(color='black', size=0.5),
+        axis.line.y = element_line(color='black', size=0.5))
+```
+**Figure 9**. Species catch composition by frequency for handline catch in Lombok, Indonesia
